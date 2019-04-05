@@ -4,6 +4,7 @@ import tensorflow as tf
 import numpy as np
 from data.featurizer import DistanceFeaturizer
 import numpy.testing as npt
+from data.standardization import Standardization
 
 
 class TestQM9Loader(tf.test.TestCase):
@@ -14,7 +15,8 @@ class TestQM9Loader(tf.test.TestCase):
 
         properties = ['mu', 'alpha', 'Cv']
         implicit_hydrogen = True
-        qm9_loader = QM9Loader(sdf_path, label_path, implicit_hydrogen=implicit_hydrogen, property_names=properties)
+        qm9_loader = QM9Loader(sdf_path, label_path, implicit_hydrogen=implicit_hydrogen, property_names=properties,
+                               label_standardization=Standardization())
         batch_size = 16
         n = 9 if implicit_hydrogen else 29
         data_set = qm9_loader.create_tf_dataset().batch(batch_size)

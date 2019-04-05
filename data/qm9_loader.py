@@ -13,6 +13,7 @@ class QM9Loader:
         property_names: List of names of the properties/labels that should be used. If None, all are used.
         featurizer: Name of the featurizer that determines how a molecule's features should be calculated
         implicit_hydrogen: If True, hydrogen atoms in the molecule will be implicit.
+        label_standardization: Provide Standardization to transform labels to zero mean and unit variance.
 
     Raises:
         ValueError: If the featurizer (provided by name) does not exist.
@@ -23,10 +24,13 @@ class QM9Loader:
                           'enthalpy_H_atom', 'free_G_atom']
 
     def __init__(self, mol_path, label_path, property_names=None, featurizer='distance', implicit_hydrogen=False,
-                 shuffle_atoms=False):
+                 shuffle_atoms=False, label_standardization=None):
         self.mol_supplier = Chem.SDMolSupplier(mol_path, removeHs=implicit_hydrogen)  # import molecules from sdf file
-        self.labels = self._import_labels(label_path, property_names)
         self.shuffle_atoms = shuffle_atoms
+
+        self.labels = self._import_labels(label_path, property_names)
+        if label_standardization is not None:
+            self.labels = label_standardization.apply(self.labels)
 
         max_num_atoms = 9 if implicit_hydrogen else 29  # used for padding in QM9 data set
         if featurizer == 'distance':
