@@ -83,3 +83,50 @@ class Featurizer:
             coordinates[i, :] = position.x, position.y, position.z
 
         return coordinates
+
+
+class DistanceFeaturizer(Featurizer):
+    """Featurizer based on interatomic distance."""
+    num_atom_features = 5
+    num_interaction_features = 1
+
+    def _generate_interaction_matrix(self, rdkit_mol):
+        """Generate interaction matrix using the real-valued Euclidian distance as interaction feature."""
+        num_atoms = rdkit_mol.GetNumAtoms()
+        interaction_matrix = np.zeros((num_atoms, num_atoms, self.num_interaction_features))
+        interaction_matrix[:, :, 0] = Chem.Get3DDistanceMatrix(rdkit_mol)
+
+        # add zero padding
+        padding_size = self.max_num_atoms - num_atoms
+        interaction_matrix = np.pad(interaction_matrix, ((0, padding_size), (0, padding_size), (0, 0)), mode='constant')
+
+        return interaction_matrix
+
+    def _generate_atom_features(self, rdkit_mol):
+        """Generate atom features by one-hot encoding the atom types.
+
+        If hydrogen is implicit, the entry for hydrogen is replaced by the number of implicit hydrogens.
+        """
+        atoms = rdkit_mol.GetAtoms()
+        atomic_numbers = np.array([1, 6, 7, 8, 9])  # QM9 data set only has HCNOF
+
+        atom_features = np.zeros((len(atoms), self.num_atom_features))
+        for i, atom in enumerate(atoms):
+            atomic_num = atom.GetAtomicNum()
+            atom_type_one_hot = (atomic_numbers == atomic_num).astype(int)  # HCNOF one-hot
+            atom_features[i, 0:5] = atom_type_one_hot
+            # if hydrogen is implicit, the 1st entry is always 0 -> replace it with number of implicit hydrogen atoms
+            if self.implicit_hydrogen:
+                atom_features[i, 0] = atom.GetNumImplicitHs()
+        # add zero padding
+        padding_size = self.max_num_atoms - len(atoms)
+        atom_features = np.pad(atom_features, ((0, padding_size), (0, 0)), mode='constant')
+
+        return atom_features
+
+    def _generate_mask(self, rdkit_mol):
+        num_atoms = rdkit_mol.GetNumAtoms()
+        mask = np.zeros(self.max_num_atoms)
+        mask[:num_atoms] = 1
+
+        return mask
