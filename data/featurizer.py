@@ -5,11 +5,10 @@ import rdkit.Chem as Chem
 class FeaturizedMolecule:
     """Molecule object holding all the relevant features.
 
-    Args:
-        atom_features: atom representations of dimension [num_atoms, num_atom_features]
-        interaction_matrix: matrix of atomic interactions, shape: [num_atoms, num_atoms, num_interaction_features]
-        mask: vector of length num_atoms indicating whether an atom is actually present (1) or zero-padded (0).
-        coordinates: xyz-coordinates of the atoms, shaped [num_atoms, 3]
+    :param atom_features: atom representations of dimension [num_atoms, num_atom_features]
+    :param interaction_matrix: matrix of atomic interactions shaped [num_atoms, num_atoms, num_interaction_features]
+    :param mask: vector of length num_atoms indicating whether an atom is actually present (1) or zero-padded (0).
+    :param coordinates: xyz-coordinates of the atoms, shaped [num_atoms, 3]
     """
 
     def __init__(self, atom_features, interaction_matrix, mask, coordinates=None):
@@ -22,9 +21,8 @@ class FeaturizedMolecule:
 class Featurizer:
     """Base class for featurizers that convert an rdkit molecule into a FeaturizedMolecule.
 
-    Args:
-        max_num_atoms: Maximum number of atoms in a molecule. Smaller molecules are zero-padded.
-        implicit_hydrogen: True if hydrogen atoms should be treated implicitly.
+    :param max_num_atoms: Maximum number of atoms in a molecule. Smaller molecules are zero-padded.
+    :param implicit_hydrogen: True if hydrogen atoms should be treated implicitly.
     """
 
     def __init__(self, max_num_atoms, implicit_hydrogen=False):
@@ -34,15 +32,10 @@ class Featurizer:
     def featurize(self, rdkit_mol, shuffle_atoms=False):
         """Convert an rdkit_mol to a FeaturizedMolecule.
 
-        Args:
-            rdkit_mol: Molecule to be featurized.
-            shuffle_atoms: If true, the order of atoms is shuffled.
-
-        Returns:
-            FeaturizedMolecule with the respective representations specified in the subclasses.
-
-        Raises:
-            ValueError: If the number of atoms exceeds max_num_atoms.
+        :param rdkit_mol: Molecule to be featurized.
+        :param shuffle_atoms: If True, the order of atoms is shuffled.
+        :return: FeaturizedMolecule with the respective representations specified in the subclasses.
+        :raises ValueError: If the number of atoms exceeds max_num_atoms.
         """
         num_atoms = rdkit_mol.GetNumAtoms()
         if num_atoms > self.max_num_atoms:

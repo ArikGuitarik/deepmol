@@ -5,8 +5,7 @@ class Model:
     """Abstract superclass for reusable models using weight sharing with tf.make_template.
     Subclasses implementing the _forward() method can then be called using .forward().
 
-    Args:
-        hparams: hyperparameters, as a tf.contrib.training.HParams object
+    :param hparams: hyperparameters, as a tf.contrib.training.HParams object
     """
     def __init__(self, hparams):
         scope_name = self.__class__.__name__

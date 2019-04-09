@@ -7,16 +7,14 @@ from data.featurizer import DistanceFeaturizer
 class QM9Loader:
     """Provide the QM9 data set as a tf.data.Dataset, given an sdf file for molecules and csv file for labels.
 
-    Args:
-        mol_path: Path of the sdf file containing the molecules
-        label_path: Path of the csv file containing the labels (in the same order as the molecules)
-        property_names: List of names of the properties/labels that should be used. If None, all are used.
-        featurizer: Name of the featurizer that determines how a molecule's features should be calculated
-        implicit_hydrogen: If True, hydrogen atoms in the molecule will be implicit.
-        label_standardization: Provide Standardization to transform labels to zero mean and unit variance.
-
-    Raises:
-        ValueError: If the featurizer (provided by name) does not exist.
+    :param mol_path: Path of the sdf file containing the molecules
+    :param label_path: Path of the csv file containing the labels (in the same order as the molecules)
+    :param property_names: List of names of the properties/labels that should be used. If None, all are used.
+    :param featurizer: Name of the featurizer that determines how a molecule's features should be calculated
+    :param implicit_hydrogen: If True, hydrogen atoms in the molecule will be implicit.
+    :param shuffle_atoms: If True, the atoms in each molecule are shuffled.
+    :param label_standardization: Provide Standardization to transform labels to zero mean and unit variance.
+    :raises ValueError: If the featurizer (provided by name) does not exist.
     """
 
     all_property_names = ['rcA', 'rcB', 'rcC', 'mu', 'alpha', 'homo', 'lumo', 'gap', 'r2', 'zpve', 'energy_U0',
@@ -45,12 +43,9 @@ class QM9Loader:
     def _import_labels(self, label_path, property_names=None):
         """Load labels from a csv file.
 
-        Args:
-            label_path: path to csv file with labels.
-            property_names: If provided, only the specified properties will be included.
-
-        Returns:
-            ndarray of labels, shaped [num_molecules, labels]
+        :param label_path: path to csv file with labels.
+        :param property_names: If provided, only the specified properties will be included.
+        :return: ndarray of labels, shaped [num_molecules, labels]
         """
         if property_names is None:
             columns_to_use = np.arange(1, 20)  # all columns except ID
@@ -67,7 +62,7 @@ class QM9Loader:
         for mol, label in zip(self.mol_supplier, self.labels):
             featurized_mol = self.featurizer.featurize(mol, shuffle_atoms=self.shuffle_atoms)
             yield {'atoms': featurized_mol.atom_features, 'interactions': featurized_mol.interaction_matrix,
-                    'mask': featurized_mol.mask, 'coordinates': featurized_mol.coordinates, 'labels': label}
+                   'mask': featurized_mol.mask, 'coordinates': featurized_mol.coordinates, 'labels': label}
 
     def create_tf_dataset(self):
         """Create a tf.data.Dataset from the imported QM9 data."""
