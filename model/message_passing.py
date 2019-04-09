@@ -50,4 +50,43 @@ class ConvFilterGenerator(Model):
 
         return conv_filter
 
-# todo: add message passing methods below here:
+
+class MatrixMessagePassing(Model):
+    """Implements EdgeNetwork message function from MPNN paper.
+
+    To generate the message from atom j to atom i, the filter matrix belonging to the distance between i and j
+    is multiplied with the hidden state of j. All messages to atom i are summed and a bias is added.
+
+    :param hparams: hyperparameters, as a tf.contrib.training.HParams object
+    """
+
+    def __init__(self, hparams):
+        super(MatrixMessagePassing, self).__init__(hparams)
+
+    def _forward(self, hidden_states, filter_matrix):
+        """Forward pass for generating messages using matrix filters.
+
+        :param hidden_states: Hidden states of all atoms, shaped [batch_size, num_atoms, hidden_state_dim]
+        :param filter_matrix: generated convolution filters, shaped
+            [batch_size, num_atoms, num_atoms, hidden_state_dim, hidden_state_dim]
+        :return: sum of incoming messages to each atom, shaped [batch_size, num_atoms, hidden_state_dim]
+        """
+        batch_size = tf.shape(hidden_states)[0]
+        num_atoms = tf.shape(hidden_states)[1]
+        hidden_state_dim = self.hparams.hidden_state_dim
+
+        # multiply matrix with hidden states and add bias to generate messages
+        hidden_states_flat = tf.reshape(hidden_states, [batch_size, num_atoms * hidden_state_dim, 1],
+                                        name='hidden_states_flat')
+        filter_matrix = tf.transpose(filter_matrix, [0, 1, 3, 2, 4])
+        filter_matrix = tf.reshape(filter_matrix,
+                                   [batch_size, num_atoms * hidden_state_dim, num_atoms * hidden_state_dim],
+                                   name='filter_matrix_flat')
+        messages = tf.matmul(filter_matrix, hidden_states_flat)  # (b, n*d, n*d) x (b, n*d, 1) -> (b, n*d, 1)
+        messages = tf.reshape(messages, [batch_size * num_atoms, hidden_state_dim], name='messages_unbiased')
+        messages += tf.get_variable("message_bias", shape=hidden_state_dim)
+        messages = tf.reshape(messages, [batch_size, num_atoms, hidden_state_dim], name='messages')
+
+        return messages
+
+# todo add vector message passing
