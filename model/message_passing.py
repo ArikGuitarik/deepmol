@@ -82,7 +82,7 @@ class MatrixMessagePassing(Model):
         matrix_filters = tf.reshape(matrix_filters,
                                     [batch_size, num_atoms * hidden_state_dim, num_atoms * hidden_state_dim],
                                     name='matrix_filters_flat')
-        messages = tf.matmul(matrix_filters, hidden_states_flat)  # (b, n*d, n*d) x (b, n*d, 1) -> (b, n*d, 1)
+        messages = matrix_filters @ hidden_states_flat  # (b, n*d, n*d) x (b, n*d, 1) -> (b, n*d, 1)
         messages = tf.reshape(messages, [batch_size * num_atoms, hidden_state_dim], name='messages_unbiased')
         messages += tf.get_variable("message_bias", shape=hidden_state_dim)
         messages = tf.reshape(messages, [batch_size, num_atoms, hidden_state_dim], name='messages')
