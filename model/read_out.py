@@ -13,7 +13,8 @@ class Set2Vec(Model):
     def __init__(self, hparams):
         super(Set2Vec, self).__init__(hparams)
 
-    def _lstm(self, m, c, hidden_state_dim, name=""):
+    @staticmethod
+    def _lstm(m, c, hidden_state_dim, name=""):
         """Create a special LSTM cell with no inputs.
 
         Usually, an LSTM cell produces its output based on its previous output, previous cell state and new input.
