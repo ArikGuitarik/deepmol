@@ -23,10 +23,30 @@ class MPNN(Model):
         self.output_dim = output_dim
 
         self.filter_gen = ConvFilterGenerator(hparams)
-        self.message_passing = MatrixMessagePassing(hparams) if hparams.use_matrix_filters else VectorMessagePassing(
-            hparams)
-        self.update = GRUUpdate(hparams)
         self.read_out = Set2Vec(hparams)
+
+        # If weight tying is enabled, the message passing and update models are re-used throughout the forward pass.
+        if hparams.weight_tying:
+            self._message_passing = MatrixMessagePassing(
+                hparams) if hparams.use_matrix_filters else VectorMessagePassing(hparams)
+            self._update = GRUUpdate(hparams)
+
+    @property
+    def message_passing(self):
+        """Return the message passing model. If weight tying is disabled, create a new one, else reuse."""
+        if self.hparams.weight_tying:
+            return self._message_passing
+        else:
+            return MatrixMessagePassing(self.hparams) if self.hparams.use_matrix_filters else VectorMessagePassing(
+                self.hparams)
+
+    @property
+    def update(self):
+        """Return the update function model. If weight tying is disabled, create a new one, else reuse."""
+        if self.hparams.weight_tying:
+            return self._update
+        else:
+            return GRUUpdate(self.hparams)
 
     def _forward(self, molecules):
         """Forward pass of the message passing neural network.
@@ -76,5 +96,6 @@ class MPNN(Model):
             set2vec_steps=12,
             set2vec_num_attention_heads=1,
             hidden_state_dim=50,
-            use_leaky_relu=True
+            use_leaky_relu=True,
+            weight_tying=True
         )
