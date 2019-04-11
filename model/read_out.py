@@ -1,5 +1,4 @@
 import tensorflow as tf
-import numpy as np
 from .abstract_model import Model
 from .fc_nn import FullyConnectedNN
 
@@ -82,8 +81,9 @@ class Set2Vec(Model):
         m_to_query = tf.get_variable("m_to_query", [hidden_state_dim, hidden_state_dim])
         attention_v = tf.get_variable("att_v", [num_attention_heads, attention_head_dim])
 
+        large_negative_value = -1e10  # must not be too large either, otherwise NaNs will occur
         mask = tf.cast(mask, tf.float32)
-        mask = (1 - mask) * (-np.float('inf'))  # masked terms will turn zero in attention softmax
+        mask = (1 - mask) * large_negative_value  # masked terms will turn zero in attention softmax
         mask = tf.reshape(mask, [batch_size, -1, 1])
 
         # variable names in the following comments: n = num_atoms, d = hidden_state_dim, d/k = attention_head_dim
