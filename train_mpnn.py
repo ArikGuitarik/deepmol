@@ -1,6 +1,7 @@
 import logging
 import tensorflow as tf
-from train_util import QM9Trainer
+import argparse
+from train_util import QM9Trainer, ConfigReader
 from model.mpnn import MPNN
 
 logging.basicConfig(format='%(levelname)s - %(message)s', level=logging.INFO)
@@ -19,6 +20,7 @@ class MPNNTrainer(QM9Trainer):
         This parameter controls the amount of smoothing and corresponds to the TensorBoard smoothing slider.
     :param property_names: List of QM9 properties that should be used for training.
     """
+
     def __init__(self, data_dir, train_log_interval, val_log_interval, name='', implicit_hydrogen=True,
                  patience=float('inf'), loss_smoothing=0.8, property_names=None):
         super(MPNNTrainer, self).__init__(data_dir, train_log_interval, val_log_interval, name, implicit_hydrogen,
@@ -100,3 +102,30 @@ class MPNNTrainer(QM9Trainer):
         test_labels_actual_scale = self._standardization.undo(self._test_mols.labels)
         test_output_actual_scale = self._standardization.undo(test_output)
         self._test_mae_actual_scale = tf.losses.absolute_difference(test_labels_actual_scale, test_output_actual_scale)
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('data_dir', help='directory containing data and labels for training, validation and test')
+    parser.add_argument('config_dir', help='directory containing json files with HParams')
+    parser.add_argument('--steps', type=int, default=3e6, help='number of steps/batches to train', )
+    parser.add_argument('--name', default='', help='prefix of results directory')
+    parser.add_argument('--train_log_interval', type=int, default=100, help='write train log after this many steps')
+    parser.add_argument('--val_log_interval', type=int, default=1e4, help='write validation log after this many steps')
+    parser.add_argument('--patience', type=float, default=float('inf'),
+                        help='early stopping: stop if validation loss has not improved for this number of steps')
+    parser.add_argument('--smoothing_factor', type=float, default=0.8, help='smoothing factor for early stopping')
+    parser.add_argument('--explicit_hydrogen', help='treat hydrogen atoms explicitly', action='store_true')
+    parser.add_argument('--property', default='energy_U0_atom', help='QM9 property to use for training')
+
+    args = parser.parse_args()
+
+    trainer = MPNNTrainer(args.data_dir, args.train_log_interval, args.val_log_interval, args.name,
+                          not args.explicit_hydrogen, args.patience, args.smoothing_factor, [args.property])
+
+    config_reader = ConfigReader(args.config_dir, MPNN.default_hparams())
+    new_hparam_configs = config_reader.get_new_hparam_configs()
+    while len(new_hparam_configs) > 0:
+        logging.info('Found %d new hyperparameter configurations.', len(new_hparam_configs))
+        trainer.run_trainings(new_hparam_configs, args.steps)
+        new_hparam_configs = config_reader.get_new_hparam_configs()
