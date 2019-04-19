@@ -52,7 +52,17 @@ class MPNNTrainer(QM9Trainer):
         return val_loss
 
     def _eval_results(self):
-        pass  # todo
+        """Compute loss and mean absolute error on validation and test set and write to results file."""
+        results = {}
+        val_averages = self._average_over_dataset(self._val_iterator, [self._val_loss, self._val_mae_actual_scale])
+        results['val_loss'] = val_averages[0]
+        results['val_mae'] = val_averages[1]
+
+        test_averages = self._average_over_dataset(self._test_iterator, [self._test_loss, self._test_mae_actual_scale])
+        results['test_loss'] = test_averages[0]
+        results['test_mae'] = test_averages[1]
+
+        self._write_eval_results_to_file(results)
 
     def _build_model(self, hparams):
         """Build the model given the hyperparameter configuration. Overrides superclass method.
