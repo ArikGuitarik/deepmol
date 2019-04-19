@@ -2,6 +2,8 @@ import os
 import logging
 import tensorflow as tf
 import numpy as np
+import time
+from datetime import timedelta
 from data.qm9_loader import QM9Loader
 from data.molecules import TFMolBatch
 from data.standardization import Standardization
@@ -71,6 +73,8 @@ class QM9Trainer:
 
         # updated by run_trainings
         self._config_name = None  # name of currently trained hyperparameter configuration
+        self._current_config_number = 0
+        self._num_configs = 0
 
         # initialized by _prepare_data
         self._standardization = None
@@ -100,9 +104,13 @@ class QM9Trainer:
         :param hparam_configs: dict of tf.contrib.training.HParams objects
         :param num_steps: Number of steps (=batches) to train.
         """
+        self._num_configs = len(hparam_configs)
+        self._current_config_number = 0
         for config_name, hparam_config in hparam_configs.items():
-            logging.info('==== next configuration: ' + config_name + ' ====')
+            self._current_config_number += 1
             self._config_name = config_name
+            logging.info('==== Configuration %d / %d: ' + config_name + ' ====', self._current_config_number,
+                         self._num_configs)
             tf.reset_default_graph()
             self._sess = tf.Session()
             logging.info('Preparing data.')
@@ -213,6 +221,7 @@ class QM9Trainer:
         best_step_smoothed = start_step
         logging.info('%d / %d: Initial validation yields loss %f', self._step, num_steps, best_val_loss)
 
+        start_time = time.time()
         for self._step in range(start_step + 1, num_steps + 1):
             # check early stopping
             if (self._step - best_step_smoothed) > self.patience:
@@ -241,6 +250,14 @@ class QM9Trainer:
                 logging.info('%d / %d: Training summary written', self._step, num_steps)
             else:
                 sess.run(self._train_op)
+
+            # estimate remaining time
+            if self._step % (10 * self.train_log_interval) == 0 and (self._step - start_step) >= self.val_log_interval:
+                seconds_since_start = time.time() - start_time
+                remaining_seconds = seconds_since_start * (num_steps / self._step - 1)
+                formatted_remaining_time = str(timedelta(seconds=int(remaining_seconds)))
+                logging.info(formatted_remaining_time + ' remaining for configuration %d / %d',
+                             self._current_config_number, self._num_configs)
 
     def _build_model(self, hparams):
         """Build the model given the hyperparameter configuration.
