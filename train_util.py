@@ -263,6 +263,21 @@ class QM9Trainer:
         """Evaluate results after training is complete. Needs to be implemented in subclass."""
         raise NotImplementedError('Must be implemented in child class.')
 
+    def _write_eval_results_to_file(self, result_dict):
+        """Write results of post-training evaluation into one central results file.
+
+        :param result_dict: Dictionary containing evaluation results.
+        """
+        results_filename = os.path.join(self.results_dir, 'results.txt')
+        if not os.path.isfile(results_filename):  # file does not exist yet
+            with open(results_filename, 'w') as f:
+                header = 'config' + '\t' + '\t'.join(result_dict.keys()) + '\n'
+                f.write(header)
+        with open(results_filename, 'a') as f:
+            data = self._config_name + '\t' + '\t'.join([str(v) for v in result_dict.values()]) + '\n'
+            f.write(data)
+        logging.info('Evaluation results for config ' + self._config_name + ' written to ' + results_filename)
+
     def _average_over_dataset(self, data_iterator, eval_tensors):
         """Calculate the average values of eval_tensors across the specified data set.
 
