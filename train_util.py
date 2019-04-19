@@ -3,6 +3,7 @@ import logging
 import tensorflow as tf
 import numpy as np
 import time
+import copy
 from datetime import timedelta
 from data.qm9_loader import QM9Loader
 from data.molecules import TFMolBatch
@@ -314,3 +315,45 @@ class QM9Trainer:
         avg_values = np.mean(values_np, axis=0)
 
         return avg_values
+
+
+class ConfigReader:
+    """Read hyperparameter configurations from json files.
+
+    Keeps track of whether new files have been added since the last read, such that after training completion,
+    training can continue directly with new configurations that have been added in the meantime.
+
+    :param config_dir: All files in this directory ending with .json will be read.
+    :param default_hparams: The tf.contrib.training.HParams object with the default hyperparameter values.
+    """
+
+    def __init__(self, config_dir, default_hparams):
+        self.config_dir = config_dir
+        self.previous_config_files = set()
+        self.default_hparams = default_hparams
+
+    def _get_new_config_files(self):
+        """List all json files in config_dir that have not been there at the previous call to this method.
+
+        :return: List of file paths.
+        """
+        config_files = {os.path.join(self.config_dir, f) for f in os.listdir(self.config_dir) if f.endswith('.json')}
+        new_config_files = config_files - self.previous_config_files
+        self.previous_config_files |= new_config_files
+        return new_config_files
+
+    def get_new_hparam_configs(self):
+        """Get all hyperparameter configs in config_dir that have not been there at the previous call to this method.
+
+        :return: dict of hyperparameter configs; config_name => tf.contrib.training.HParams object
+        """
+        new_config_files = self._get_new_config_files()
+        hparam_configs = {}
+        for config_file in new_config_files:
+            with open(config_file, 'r') as f:
+                hparams = copy.deepcopy(self.default_hparams)
+                filename = os.path.basename(config_file)
+                config_name = os.path.splitext(filename)[0]
+                hparam_configs[config_name] = hparams.parse_json(f.read())
+
+        return hparam_configs
