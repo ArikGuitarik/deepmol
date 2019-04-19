@@ -97,5 +97,9 @@ class MPNN(Model):
             set2vec_num_attention_heads=1,
             hidden_state_dim=50,
             use_leaky_relu=True,
-            weight_tying=True
+            weight_tying=True,
+            batch_size=30,
+            learning_rate=1e-4,
+            lr_decay_rate=0.96,
+            lr_decay_steps=100000,
         )
