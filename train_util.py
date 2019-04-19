@@ -105,8 +105,7 @@ class QM9Trainer:
         :param hparam_configs: dict of tf.contrib.training.HParams objects
         :param num_steps: Number of steps (=batches) to train.
         """
-        self._num_configs = len(hparam_configs)
-        self._current_config_number = 0
+        self._num_configs += len(hparam_configs)
         for config_name, hparam_config in hparam_configs.items():
             self._current_config_number += 1
             self._config_name = config_name
