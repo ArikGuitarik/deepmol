@@ -108,10 +108,11 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('data_dir', help='directory containing data and labels for training, validation and test')
     parser.add_argument('config_dir', help='directory containing json files with HParams')
-    parser.add_argument('--steps', type=int, default=3e6, help='number of steps/batches to train', )
+    parser.add_argument('--steps', type=int, default=3000000, help='number of steps/batches to train', )
     parser.add_argument('--name', default='', help='prefix of results directory')
-    parser.add_argument('--train_log_interval', type=int, default=100, help='write train log after this many steps')
-    parser.add_argument('--val_log_interval', type=int, default=1e4, help='write validation log after this many steps')
+    parser.add_argument('--train_log_interval', type=int, default=250, help='write train log after this many steps')
+    parser.add_argument('--val_log_interval', type=int, default=10000,
+                        help='write validation log after this many steps')
     parser.add_argument('--patience', type=float, default=float('inf'),
                         help='early stopping: stop if validation loss has not improved for this number of steps')
     parser.add_argument('--smoothing_factor', type=float, default=0.8, help='smoothing factor for early stopping')
