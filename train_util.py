@@ -106,6 +106,8 @@ class QM9Trainer:
         :param num_steps: Number of steps (=batches) to train.
         """
         self._num_configs += len(hparam_configs)
+        self._save_hparam_configs(hparam_configs)
+
         for config_name, hparam_config in hparam_configs.items():
             self._current_config_number += 1
             self._config_name = config_name
@@ -128,6 +130,18 @@ class QM9Trainer:
             self._eval_results()
             self._sess.close()
         logging.info('All trainings complete.')
+
+    def _save_hparam_configs(self, hparam_configs):
+        """Save the hyperparameter configurations to json files in the results folder.
+
+        It is very useful to store the the hyperparameter configurations along with the results they produced.
+        :param hparam_configs: dict of tf.contrib.training.HParams objects
+        """
+        config_save_dir = os.path.join(self.results_dir, 'configs')
+        os.makedirs(config_save_dir, exist_ok=True)
+        for config_name, hparam_config in hparam_configs.items():
+            with open(os.path.join(config_save_dir, config_name + '.json'), 'w') as f:
+                f.write(hparam_config.to_json(2))
 
     def _prepare_data(self, batch_size):
         """Create data iterators and TFMolBatches for the QM9 data.
