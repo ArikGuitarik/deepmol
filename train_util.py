@@ -4,9 +4,12 @@ class CurveSmoother:
     For instance, to smooth a loss curve, instantiate the class and pass the values to the smooth function one by one.
 
     :param smoothing_factor: controls the amount of smoothing. 0 = no smoothing, 1 = stuck at initial value.
+    :raises ValueError: If the smoothing factor is outside the valid range [0, 1].
     """
 
     def __init__(self, smoothing_factor):
+        if not 0 <= smoothing_factor <= 1:
+            raise ValueError('Smoothing factor must lie between 0 and 1.')
         self._smoothing_factor = smoothing_factor
         self._last_smoothed_value = None
 
