@@ -1,5 +1,8 @@
 import numpy as np
 import tensorflow as tf
+import logging
+import pybel
+from sklearn.manifold import MDS
 
 
 class AbstractMol:
@@ -214,3 +217,159 @@ class TFMolBatch(AbstractMol):
             distances = tf.reduce_sum(distances, axis=-1)
             distances = tf.sqrt(distances)
             self._distances = distances
+
+
+class NPMol(AbstractMol):
+    """Holds np.ndarrays representing a single molecule, provided in different useful formats.
+
+    At construction, converts from a zero-padded, stochastic reconstruction to a molecule with definite values.
+    Moreover, provides internal conversion between different formats: distance matrix, flattened distances, coordinates,
+    smiles, xyz file format
+
+    For construction, atoms and [distances|distance_matrix|coordinates] are necessary.
+
+    :param atoms: one-hot vector or probability distribution over atom types, will be converted to a
+        list of atom symbols at construction.
+    :param distances: flattened ndarray of n(n-1)/2 relevant entries in the distance matrix
+    :param distance_matrix: The distance matrix of the molecule.
+    :param coordinates: The 3D coordinates for all atoms in the molecule.
+    :param smiles: Optionally, provide the SMILES string of the molecule.
+    """
+
+    def __init__(self, atoms, distances=None, distance_matrix=None, coordinates=None, smiles=None):
+        super(NPMol, self).__init__(atoms, distances=distances, distance_matrix=distance_matrix,
+                                    coordinates=coordinates)
+        self._smiles = smiles
+        self._xyz = None
+        self._valid_distances = None
+        self._discretize()
+
+    def _discretize(self):
+        """Remove padding and convert the probabilistic description of atom types to a concrete list of atom symbols."""
+        atom_types, mask = self._get_atom_types_and_mask()
+        self.atoms = atom_types  # overwrite atom one-hot-matrix with list of type symbols
+        self._remove_zero_padding(mask)
+
+    def _remove_zero_padding(self, mask):
+        """Remove zero-padding on the basis of the provided boolean mask which specifies which atoms are present."""
+        padded_atom_count = len(mask)
+        actual_atom_count = sum(mask)
+        mask_matrix = mask * mask.reshape([padded_atom_count, 1])
+        # remove coordinates of non-existent atoms
+        if self._coordinates is not None:
+            self._coordinates = self._coordinates[mask]
+        if self._distance_matrix is not None:
+            unpadded_distance_matrix = np.reshape(self._distance_matrix[mask_matrix],
+                                                  [actual_atom_count, actual_atom_count])
+            self._distance_matrix = unpadded_distance_matrix
+        if self._distances is not None:
+            flattened_mask_matrix = mask_matrix[np.triu_indices(padded_atom_count, 1)]
+            self._distances = self._distances[flattened_mask_matrix]
+
+    def _get_atom_types_and_mask(self):
+        """Generate list of unambiguous atom symbols and a boolean mask from a (possibly) stochastic atom type matrix.
+        The most probable atom type is chosen and converted to its string symbol.
+        If atom type NONE is most probable, the atom is not included in the list of symbols,
+        and the respective mask value is set to False.
+        """
+        most_probable_indices = np.argmax(self.atoms, axis=-1)
+        mask = most_probable_indices < 4  # 4 = none_index
+        atom_count = mask.sum()
+        if atom_count == 0:
+            logging.warning('Molecule does not contain any atoms.')
+
+        # atom types to strings/symbols
+        available_types = ['C', 'N', 'O', 'F']
+        filtered_indices: np.core.multiarray.ndarray = most_probable_indices[mask]
+        atom_types = [available_types[type_index] for type_index in filtered_indices]
+
+        return atom_types, mask
+
+    @property
+    def xyz(self):
+        """Atom types and coordinates in the xyz data format, generated from distances or coordinates."""
+        if self._xyz is None:
+            self._generate_xyz()
+        return self._xyz
+
+    @property
+    def smiles(self):
+        """Canonical SMILES string, generated if necessary."""
+        if self._smiles is None:
+            self._generate_smiles()
+        return self._smiles
+
+    def _generate_xyz(self):
+        """XYZ format, generated if necessary."""
+        # write in xyz format
+        xyz = '{}\n\n'.format(len(self.atoms))
+        for i, point in enumerate(self.coordinates):
+            xyz += self.atoms[i] + '\t{}\t{}\t{}\n'.format(point[0], point[1], point[2])
+
+        self._xyz = xyz
+
+    def _generate_smiles(self):
+        """Generate canonical SMILES strings from atoms and coordinates."""
+        if len(self.atoms) == 0:
+            self._smiles = ''
+            return
+
+        parsed_mol = pybel.readstring('xyz', self.xyz)
+        self._smiles = parsed_mol.write('can', opt={'n': None, 'i': None})  # remove mol name and stereochemistry
+
+    def _generate_coordinates(self):
+        """Generate atomic coordinates from distance matrix using multi-dimensional scaling."""
+        atom_count = self.distance_matrix.shape[0]
+        if atom_count > 1:
+            mds = MDS(n_components=3, metric=True, dissimilarity='precomputed', eps=1e-7, n_init=1)
+            self._coordinates = mds.fit_transform(self.distance_matrix)
+        else:
+            self._coordinates = np.zeros([atom_count, 3])
+
+    def _generate_distance_matrix(self):
+        """Generate distance matrix from coordinates or distances."""
+        atom_count = len(self.atoms)
+        distance_matrix = np.zeros([atom_count, atom_count])
+        if self._distances is not None:
+            distance_matrix[np.triu_indices(atom_count, 1)] = self.distances
+            distance_matrix += np.transpose(distance_matrix)
+            self._distance_matrix = distance_matrix
+
+        elif self._coordinates is not None:
+            for i in range(atom_count):
+                for j in range(atom_count):
+                    difference = self._coordinates[i] - self._coordinates[j]
+                    distance = np.sqrt(np.sum(difference * difference))
+                    distance_matrix[i, j] = distance
+                    distance_matrix[j, i] = distance
+
+            self._distance_matrix = distance_matrix
+        else:
+            raise AttributeError('Could not generate distance matrix, neither distances nor coordinates are given.')
+
+    def _generate_distances(self):
+        """Generate distances from distance matrix."""
+        atom_count = self.distance_matrix.shape[0]
+        self._distances = self.distance_matrix[np.triu_indices(atom_count, 1)]
+
+    @classmethod
+    def create_from_batch(cls, batch_atoms, batch_distances=None, batch_distance_matrix=None, batch_coordinates=None):
+        """Create a list of DiscreteMols from data where the first dimension is the batch dimension."""
+        if batch_atoms is None:
+            raise ValueError('Atoms must be provided.')
+        if all([batch_distances is None, batch_distance_matrix is None, batch_coordinates is None]):
+            raise ValueError('Either distances, distance_matrix or coordinates need to be specified.')
+
+        batch_size = batch_atoms.shape[0]
+
+        # replace params with value None by a list of Nones, so we can iterate over them and pass on None for each mol.
+        none_list = [None for _ in range(batch_size)]
+        batch_coordinates = none_list if batch_coordinates is None else batch_coordinates
+        batch_distances = none_list if batch_distances is None else batch_distances
+        batch_distance_matrix = none_list if batch_distance_matrix is None else batch_distance_matrix
+
+        batch_mols = [cls(atoms, distances=distances, distance_matrix=distance_matrix, coordinates=coordinates)
+                      for atoms, coordinates, distances, distance_matrix
+                      in zip(batch_atoms, batch_coordinates, batch_distances, batch_distance_matrix)]
+
+        return batch_mols

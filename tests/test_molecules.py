@@ -1,6 +1,7 @@
 import tensorflow as tf
 import numpy as np
-from data.molecules import TFMolBatch
+import numpy.testing as npt
+from data.molecules import TFMolBatch, NPMol
 
 # sample molecules
 coordinates = np.array([[[0, 0, 0], [1, 0, 0], [-1, 0, 0]],
@@ -96,3 +97,62 @@ class TestTFMolBatch(tf.test.TestCase):
             sess.run(tf.global_variables_initializer())
             labels_np = sess.run(labels_tf, feed_dict={coordinates_ph: coordinates, atoms_ph: atoms, labels_ph: labels})
             self.assertAllClose(labels_np, labels)
+
+
+class TestNPMol(npt.TestCase):
+    def test_none_provided(self):
+        with self.assertRaises(ValueError):
+            _ = NPMol(atoms=atoms)
+
+    def test_distances_provided(self):
+        mol = NPMol(atoms=atoms[0], distances=distances[0])
+        self.assertTrue(isinstance(mol.smiles, str))
+        npt.assert_allclose(mol.distance_matrix, distance_matrix[0])
+        npt.assert_equal(mol.coordinates.shape, coordinates[0].shape)
+
+    def test_distance_matrix_provided(self):
+        mol = NPMol(atoms=atoms[0], distance_matrix=distance_matrix[0])
+        npt.assert_allclose(mol.distances, distances[0])
+        self.assertTrue(isinstance(mol.smiles, str))
+        npt.assert_equal(mol.coordinates.shape, coordinates[0].shape)
+
+    def test_coordinates_provided(self):
+        mol = NPMol(atoms=atoms[0], coordinates=coordinates[0])
+        npt.assert_allclose(mol.distances, distances[0])
+        npt.assert_allclose(mol.distance_matrix, distance_matrix[0])
+        self.assertTrue(isinstance(mol.smiles, str))
+
+    def test_atom_types(self):
+        mol = NPMol(atoms=atoms[0], coordinates=coordinates[0])
+        npt.assert_equal(mol.atoms, atom_types[0])
+
+    def test_padding_removal(self):
+        p_coordinates = np.concatenate((coordinates[0], [[0, 0, 0]]))
+        p_distance_matrix = np.pad(distance_matrix[0], ((0, 1), (0, 1)), mode='constant')
+        p_distances = p_distance_matrix[np.triu_indices(4, 1)]
+        p_atoms = np.concatenate((atoms[0], [[0, 0, 0, 0, 1]]))
+
+        mol = NPMol(atoms=p_atoms, coordinates=p_coordinates, distance_matrix=p_distance_matrix,
+                    distances=p_distances)
+        npt.assert_allclose(mol.distances, distances[0])
+        npt.assert_allclose(mol.distance_matrix, distance_matrix[0])
+        npt.assert_allclose(mol.coordinates, coordinates[0])
+        npt.assert_equal(mol.atoms, atom_types[0])
+
+    def test_batch_construction(self):
+        mol_batch = NPMol.create_from_batch(batch_atoms=atoms, batch_distances=distances)
+        for i in range(len(distances)):
+            npt.assert_allclose(mol_batch[i].distances, distances[i])
+            npt.assert_allclose(mol_batch[i].distance_matrix, distance_matrix[i])
+            npt.assert_equal(mol_batch[i].atoms, atom_types[i])
+            self.assertTrue(isinstance(mol_batch[i].smiles, str))
+
+    def test_empty(self):
+        atoms_empty = np.zeros([batch_size, num_atoms, num_atom_types])
+        atoms_empty[:, :, -1] = 1
+        mol_batch = NPMol.create_from_batch(batch_atoms=atoms_empty, batch_distances=distances)
+        for mol in mol_batch:
+            npt.assert_equal(mol.distance_matrix, np.zeros([0, 0]))
+            npt.assert_equal(mol.coordinates, np.zeros([0, 3]))
+            npt.assert_equal(mol.smiles, '')
+            npt.assert_equal(mol.atoms, [])
