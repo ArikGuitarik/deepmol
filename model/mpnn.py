@@ -93,13 +93,13 @@ class MPNN(Model):
             filter_hidden_layers=4,
             filter_hidden_dim=50,
             use_matrix_filters=True,  # otherwise use vector
-            set2vec_steps=12,
+            set2vec_steps=6,
             set2vec_num_attention_heads=1,
-            hidden_state_dim=50,
+            hidden_state_dim=70,
             use_leaky_relu=True,
             weight_tying=True,
             batch_size=30,
-            learning_rate=1e-4,
-            lr_decay_rate=0.96,
+            learning_rate=2.8e-4,
+            lr_decay_rate=0.945,
             lr_decay_steps=100000,
         )
