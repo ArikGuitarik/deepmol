@@ -21,11 +21,13 @@ class Featurizer:
 
     :param max_num_atoms: Maximum number of atoms in a molecule. Smaller molecules are zero-padded.
     :param implicit_hydrogen: True if hydrogen atoms should be treated implicitly.
+    :param shuffle_atoms: If True, the order of atoms is shuffled.
     """
 
-    def __init__(self, max_num_atoms, implicit_hydrogen=True):
+    def __init__(self, max_num_atoms, implicit_hydrogen=True, shuffle_atoms=False):
         self.max_num_atoms = max_num_atoms
         self.implicit_hydrogen = implicit_hydrogen
+        self.shuffle_atoms = shuffle_atoms
         # defined in the sub class:
         self._num_atom_features = None
         self._num_interaction_features = None
@@ -40,11 +42,10 @@ class Featurizer:
         """Number of features encoding the interactions between atoms."""
         return self._num_interaction_features
 
-    def featurize(self, rdkit_mol, shuffle_atoms=False):
+    def featurize(self, rdkit_mol):
         """Convert an rdkit_mol to a FeaturizedMolecule.
 
         :param rdkit_mol: Molecule to be featurized.
-        :param shuffle_atoms: If True, the order of atoms is shuffled.
         :return: FeaturizedMolecule with the respective representations specified in the subclasses.
         :raises ValueError: If the number of atoms exceeds max_num_atoms.
         """
@@ -52,7 +53,7 @@ class Featurizer:
         if num_atoms > self.max_num_atoms:
             raise ValueError('max_num_atoms is %d, but molecule has %d atoms.' % (self.max_num_atoms, num_atoms))
 
-        if shuffle_atoms:
+        if self.shuffle_atoms:
             order = list(range(num_atoms))
             np.random.shuffle(order)
             rdkit_mol = Chem.RenumberAtoms(rdkit_mol, newOrder=order)
@@ -92,8 +93,8 @@ class DistanceFeaturizer(Featurizer):
     Interaction features: Euclidian distance matrix
     """
 
-    def __init__(self, max_num_atoms, implicit_hydrogen=True):
-        super().__init__(max_num_atoms, implicit_hydrogen)
+    def __init__(self, max_num_atoms, implicit_hydrogen=True, shuffle_atoms=False):
+        super().__init__(max_num_atoms, implicit_hydrogen, shuffle_atoms)
         self._num_atom_features = 5 if implicit_hydrogen else 6
         self._num_interaction_features = 1
 
@@ -141,8 +142,8 @@ class DistanceNumHFeaturizer(DistanceFeaturizer):
     implicit hydrogens at the atom.
     """
 
-    def __init__(self, max_num_atoms, implicit_hydrogen=True):
-        super().__init__(max_num_atoms, implicit_hydrogen)
+    def __init__(self, max_num_atoms, implicit_hydrogen=True, shuffle_atoms=False):
+        super().__init__(max_num_atoms, implicit_hydrogen, shuffle_atoms)
         self._num_atom_features = 6
         self._num_interaction_features = 1
 
