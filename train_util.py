@@ -72,6 +72,9 @@ class QM9Trainer:
         self.property_names = QM9Loader.all_property_names if property_names is None else property_names
         self.implicit_hydrogen = implicit_hydrogen
 
+        # initialized in subclass constructor
+        self.featurizer = None
+
         # updated by run_trainings
         self._config_name = None  # name of currently trained hyperparameter configuration
         self._current_config_number = 0
@@ -155,33 +158,31 @@ class QM9Trainer:
 
         with tf.name_scope('train_data'):
             train_data = self._train_iterator.get_next()
-            self._train_mols = TFMolBatch(train_data['atoms'], mask=train_data['mask'], labels=train_data['labels'],
+            self._train_mols = TFMolBatch(train_data['atoms'], labels=train_data['labels'],
                                           distance_matrix=train_data['interactions'],
                                           coordinates=train_data['coordinates'])
         with tf.name_scope('val_data'):
             val_data = self._val_iterator.get_next()
-            self._val_mols = TFMolBatch(val_data['atoms'], mask=val_data['mask'], labels=val_data['labels'],
+            self._val_mols = TFMolBatch(val_data['atoms'], labels=val_data['labels'],
                                         distance_matrix=val_data['interactions'], coordinates=val_data['coordinates'])
         with tf.name_scope('test_data'):
             test_data = self._test_iterator.get_next()
-            self._test_mols = TFMolBatch(test_data['atoms'], mask=test_data['mask'], labels=test_data['labels'],
+            self._test_mols = TFMolBatch(test_data['atoms'], labels=test_data['labels'],
                                          distance_matrix=test_data['interactions'],
                                          coordinates=test_data['coordinates'])
 
-    def _create_data_iterator(self, batch_size, partition='training', featurizer='distance', standardization=None):
+    def _create_data_iterator(self, batch_size, partition='training', standardization=None):
         """Create a data iterator for one partition of the data set.
 
         :param batch_size: Number of molecules per batch.
         :param partition: [training|validation|test]
-        :param featurizer: name of the featurizer to featurize the molecules.
         :param standardization: Standardization object, ensures that label standardization is the same in all partitions
         :return:
         """
         data_path = os.path.join(self.data_dir, partition + '.sdf')
         label_path = os.path.join(self.data_dir, partition + '_labels.csv')
-        qm9_loader = QM9Loader(data_path, label_path, implicit_hydrogen=self.implicit_hydrogen,
-                               property_names=self.property_names, label_standardization=standardization,
-                               featurizer=featurizer)
+        qm9_loader = QM9Loader(data_path, label_path, self.featurizer, property_names=self.property_names,
+                               label_standardization=standardization)
         data_set = qm9_loader.create_tf_dataset()
         data_set = data_set.cache()
         if partition == 'training':

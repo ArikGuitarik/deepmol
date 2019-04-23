@@ -77,11 +77,6 @@ class TestTFMolBatch(tf.test.TestCase):
         with self.assertRaises(ValueError):
             _ = TFMolBatch(atoms=atoms_ph)
 
-        coordinates_ph = tf.placeholder(tf.float32, shape=[None, num_atoms, 3])
-        mols = TFMolBatch(atoms=atoms_ph, coordinates=coordinates_ph)
-        with self.assertRaises(AttributeError):
-            _ = mols.mask
-
     def test_labels(self):
         atoms_ph = tf.placeholder(tf.float32, shape=[None, num_atoms, num_atom_types])
         coordinates_ph = tf.placeholder(tf.float32, shape=[None, num_atoms, 3])

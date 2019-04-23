@@ -3,6 +3,7 @@ import tensorflow as tf
 import argparse
 from train_util import QM9Trainer, ConfigReader
 from model.mpnn import MPNN
+from data.featurizer import DistanceNumHFeaturizer
 
 logging.basicConfig(format='%(levelname)s - %(message)s', level=logging.INFO)
 
@@ -25,6 +26,10 @@ class MPNNTrainer(QM9Trainer):
                  patience=float('inf'), loss_smoothing=0.8, property_names=None):
         super(MPNNTrainer, self).__init__(data_dir, train_log_interval, val_log_interval, name, implicit_hydrogen,
                                           patience, loss_smoothing, property_names)
+
+        max_num_atoms = 9 if implicit_hydrogen else 29  # relevant for zero padding
+        self.featurizer = DistanceNumHFeaturizer(max_num_atoms, implicit_hydrogen)
+
         # initialized by _build_model
         self._train_summary = None
         self._val_loss = None

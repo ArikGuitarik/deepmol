@@ -2,7 +2,7 @@ import os
 from data.qm9_loader import QM9Loader
 import tensorflow as tf
 import numpy as np
-from data.featurizer import DistanceFeaturizer
+from data.featurizer import DistanceNumHFeaturizer
 import numpy.testing as npt
 from data.standardization import Standardization
 
@@ -15,10 +15,12 @@ class TestQM9Loader(tf.test.TestCase):
 
         properties = ['mu', 'alpha', 'Cv']
         implicit_hydrogen = True
-        qm9_loader = QM9Loader(sdf_path, label_path, implicit_hydrogen=implicit_hydrogen, property_names=properties,
+        n = 9 if implicit_hydrogen else 29
+
+        featurizer = DistanceNumHFeaturizer(n, implicit_hydrogen)
+        qm9_loader = QM9Loader(sdf_path, label_path, featurizer, property_names=properties,
                                label_standardization=Standardization())
         batch_size = 16
-        n = 9 if implicit_hydrogen else 29
         data_set = qm9_loader.create_tf_dataset().batch(batch_size)
         mol_batch = data_set.make_one_shot_iterator().get_next()
 
@@ -26,10 +28,9 @@ class TestQM9Loader(tf.test.TestCase):
             for i in range(4):
                 data = sess.run(mol_batch)
                 npt.assert_equal(data['atoms'].shape,
-                                 np.array([batch_size, n, DistanceFeaturizer.num_atom_features]))
+                                 np.array([batch_size, n, featurizer.num_atom_features]))
                 npt.assert_equal(data['interactions'].shape,
-                                 np.array([batch_size, n, n, DistanceFeaturizer.num_interaction_features]))
-                npt.assert_equal(data['mask'].shape, np.array([batch_size, n]))
+                                 np.array([batch_size, n, n, featurizer.num_interaction_features]))
                 npt.assert_equal(data['labels'].shape, np.array([batch_size, len(properties)]))
 
 

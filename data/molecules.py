@@ -103,12 +103,13 @@ class TFMolBatch(AbstractMol):
 
     @property
     def mask(self):
-        """Return mask if provided at construction.
-        :raises AttributeError: If mask has not been provided at construction.
-        """
+        """ Return the mask. If necessary, it will be generated from the values for atom type NONE. """
         if self._mask is None:
-            raise AttributeError('Mask has not been provided and can not be generated.')
+            self._generate_mask()
         return self._mask
+
+    def _generate_mask(self):
+        self._mask = 1 - self.atoms[:, :, -1]
 
     def _generate_coordinates(self):
         """Coordinates can not be generated from distance matrix or distances."""
