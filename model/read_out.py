@@ -111,3 +111,32 @@ class Set2Vec(Model):
                     m = tf.concat([m, read], axis=1, name='m')
 
         return m
+
+
+class ConcatReadOut(Model):
+    """Simply concatenates the hidden states of all atoms. (Useful if atom order should be preserved.)
+
+    :param hparams: hyperparameters, as a tf.contrib.training.HParams object
+    """
+    def __init__(self, hparams):
+        super().__init__(hparams)
+
+    def _forward(self, hidden_states, mask=None):
+        """Concatenate hidden states.
+
+        :param hidden_states: Hidden states of all atoms, shaped [batch_size, num_atoms, hidden_state_dim]
+        :param mask: indicates whether an atom is actually present (1) or zero-padded (0). [batch_size, num_atoms]
+        :return: concatenated tensor of dimension [batch_size, num_atoms * num_atom_features].
+        """
+        # set hidden states of all padded atoms to zero
+        if mask is not None:
+            mask = tf.cast(mask, tf.float32)
+            mask = tf.expand_dims(mask, axis=2)
+            hidden_states = hidden_states * mask
+
+        hidden_state_dim = hidden_states.get_shape()[2].value
+        batch_size = tf.shape(hidden_states)[0]
+        num_atoms = hidden_states.get_shape()[1]
+        concatenated_nodes = tf.reshape(hidden_states, [batch_size, num_atoms * hidden_state_dim])
+
+        return concatenated_nodes

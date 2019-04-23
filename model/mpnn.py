@@ -2,7 +2,7 @@ import tensorflow as tf
 import numpy as np
 from .message_passing import MatrixMessagePassing, VectorMessagePassing, ConvFilterGenerator
 from .update_function import GRUUpdate
-from .read_out import Set2Vec
+from .read_out import Set2Vec, ConcatReadOut
 from .fc_nn import FullyConnectedNN
 from .abstract_model import Model
 
@@ -23,7 +23,10 @@ class MPNN(Model):
         self.output_dim = output_dim
 
         self.filter_gen = ConvFilterGenerator(hparams)
-        self.read_out = Set2Vec(hparams)
+        if hparams.use_set2vec:
+            self.read_out = Set2Vec(hparams)
+        else:
+            self.read_out = ConcatReadOut(hparams)
 
         # If weight tying is enabled, the message passing and update models are re-used throughout the forward pass.
         if hparams.weight_tying:
@@ -93,6 +96,7 @@ class MPNN(Model):
             filter_hidden_layers=4,
             filter_hidden_dim=50,
             use_matrix_filters=True,  # otherwise use vector
+            use_set2vec=True,
             set2vec_steps=6,
             set2vec_num_attention_heads=1,
             hidden_state_dim=70,
