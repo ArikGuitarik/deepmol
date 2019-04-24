@@ -1,4 +1,5 @@
 import logging
+import os
 import tensorflow as tf
 import argparse
 from train_util import QM9Trainer, ConfigReader
@@ -57,7 +58,36 @@ class VAETrainer(QM9Trainer):
         test_accuracies = self._compute_accuracies(self._test_iterator, self._test_mols, self._test_mols_rec)
         results['test_atom_acc'], results['test_smiles_acc'] = test_accuracies
 
+        if self._variational:
+            logging.info('Sampling molecules...')
+            self.sample_mols(num_batches=1)
+
         self._write_eval_results_to_file(results)
+
+    def sample_mols(self, num_batches):
+        """Sample molecules from the latent prior and write them to disk.
+
+        :param num_batches: Number of batches to sample.
+        """
+        xyz_list = []
+        for _ in range(num_batches):
+            if self._coordinate_output:
+                sampled_atoms, sampled_coords = self._sess.run(
+                    [self._sampled_mols.atoms, self._sampled_mols.coordinates])
+                sampled_mols = NPMol.create_from_batch(batch_atoms=sampled_atoms, batch_coordinates=sampled_coords)
+            else:
+                sampled_atoms, sampled_dist = self._sess.run([self._sampled_mols.atoms, self._sampled_mols.distances])
+                sampled_mols = NPMol.create_from_batch(batch_atoms=sampled_atoms, batch_distances=sampled_dist)
+            batch_xyz = [mol.xyz for mol in sampled_mols]
+            xyz_list.extend(batch_xyz)
+
+        xyz_dir = os.path.join(self.results_dir, 'sampled')
+        os.makedirs(xyz_dir, exist_ok=True)
+        max_num_digits = len(str(len(xyz_list)))
+        for i, xyz in enumerate(xyz_list):
+            path = os.path.join(xyz_dir, str(i).zfill(max_num_digits) + '.xyz')
+            with open(path, 'w') as f:
+                f.write(xyz)
 
     def _compute_accuracies(self, data_iterator, mols, mols_rec):
         """Iterate over the given set to evaluate scores.
@@ -124,6 +154,8 @@ class VAETrainer(QM9Trainer):
         self._test_mols_rec = vae.reconstruct(self._test_mols)
 
         self._coordinate_output = hparams.coordinate_output
+        self._variational = hparams.variational
+        self._sampled_mols = vae.sample(hparams.batch_size)
 
 
 if __name__ == '__main__':
