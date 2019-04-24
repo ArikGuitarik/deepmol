@@ -159,16 +159,17 @@ class QM9Trainer:
         with tf.name_scope('train_data'):
             train_data = self._train_iterator.get_next()
             self._train_mols = TFMolBatch(train_data['atoms'], labels=train_data['labels'],
-                                          distance_matrix=train_data['interactions'],
+                                          distance_matrix=train_data['interactions'][..., 0],  # squeeze interaction dim
                                           coordinates=train_data['coordinates'])
         with tf.name_scope('val_data'):
             val_data = self._val_iterator.get_next()
             self._val_mols = TFMolBatch(val_data['atoms'], labels=val_data['labels'],
-                                        distance_matrix=val_data['interactions'], coordinates=val_data['coordinates'])
+                                        distance_matrix=val_data['interactions'][..., 0],
+                                        coordinates=val_data['coordinates'])
         with tf.name_scope('test_data'):
             test_data = self._test_iterator.get_next()
             self._test_mols = TFMolBatch(test_data['atoms'], labels=test_data['labels'],
-                                         distance_matrix=test_data['interactions'],
+                                         distance_matrix=test_data['interactions'][..., 0],
                                          coordinates=test_data['coordinates'])
 
     def _create_data_iterator(self, batch_size, partition='training', standardization=None):
