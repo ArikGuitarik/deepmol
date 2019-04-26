@@ -300,6 +300,18 @@ class NPMol(AbstractMol):
             self._generate_smiles()
         return self._smiles
 
+    def invert_coordinates(self):
+        """Mirror the molecule by flipping the sign of the x coordinates.
+
+        Coordinates are generated if necessary.
+        If the xyz representation had previously been generated, it will be reset.
+        Distance matrix, distances and smiles are invariant with respect to this transformation and remain unchanged.
+        """
+        if self._coordinates is None:
+            self._generate_coordinates()
+        self._coordinates[:, 0] *= -1
+        self._xyz = None
+
     def _generate_xyz(self):
         """XYZ format, generated if necessary."""
         # write in xyz format

@@ -1,7 +1,10 @@
 import logging
 import os
 import tensorflow as tf
+import numpy as np
 import argparse
+import pybel
+import openbabel
 from train_util import QM9Trainer, ConfigReader
 from model.molvae import MolVAE
 from data.featurizer import DistanceFeaturizer
@@ -52,11 +55,13 @@ class VAETrainer(QM9Trainer):
 
         logging.info('Computing validation accuracies...')
         val_accuracies = self._compute_accuracies(self._val_iterator, self._val_mols, self._val_mols_rec)
-        results['val_atom_acc'], results['val_smiles_acc'] = val_accuracies
+        results['val_atom_acc'], results['val_smiles_acc'], results['val_pos_rmse'], results[
+            'val_pos_mae'] = val_accuracies
 
         logging.info('Computing test accuracies...')
         test_accuracies = self._compute_accuracies(self._test_iterator, self._test_mols, self._test_mols_rec)
-        results['test_atom_acc'], results['test_smiles_acc'] = test_accuracies
+        results['test_atom_acc'], results['test_smiles_acc'], results['test_pos_rmse'], results[
+            'test_pos_mae'] = test_accuracies
 
         if self._variational:
             logging.info('Sampling molecules...')
@@ -98,9 +103,12 @@ class VAETrainer(QM9Trainer):
         :return:
             - smiles_accuracy: The ratio of molecules where the SMILES string was correctly reconstructed.
             - atom_accuracy: The ratio of molecules where all atom types were correctly reconstructed.
+            - rmse: The root-mean-square error of atom positions for molecules with correctly reconstructed atoms.
+            - mae: The mean absolute error of atom positions for molecules with correctly reconstructed atoms.
         """
         self._sess.run(data_iterator.initializer)
         correct_smiles_counter, correct_atoms_counter, total_counter = 0, 0, 0
+        mse_sum, mae_sum = 0, 0
         while True:
             try:
                 if self._coordinate_output:
@@ -119,16 +127,87 @@ class VAETrainer(QM9Trainer):
                         correct_smiles_counter += 1
                     if mol.atoms == rec_mol.atoms:
                         correct_atoms_counter += 1
+                        mse, mae = self._compute_position_accuracy(mol, rec_mol)
+                        mse_sum += mse
+                        mae_sum += mae
                     total_counter += 1
             except tf.errors.OutOfRangeError:
                 break
         smiles_accuracy = 0
         atom_accuracy = 0
+        rmse, mae = -1, -1
         if total_counter != 0:
             smiles_accuracy = correct_smiles_counter / total_counter
         if correct_atoms_counter != 0:
             atom_accuracy = correct_atoms_counter / total_counter
-        return atom_accuracy, smiles_accuracy
+            rmse = np.sqrt(mse_sum / correct_atoms_counter)
+            mae /= correct_atoms_counter
+        return atom_accuracy, smiles_accuracy, rmse, mae
+
+    @staticmethod
+    def _compute_position_accuracy(mol, rec_mol):
+        """Compute the scores comparing the atom positions in two molecules.
+
+        The mean squared error and mean absolute error of their atom positions is calculated.
+        To do this, rec_mol is aligned with mol using openbabel.
+        A mirrored version of rec_mol is used if this leads to a lower MSE.
+
+        :param mol: NPMol
+        :param rec_mol: NPMol
+        :return:
+            - mean squared error of atom positions
+            - mean absolute error of atom positions
+        """
+        py_mol = pybel.readstring('xyz', mol.xyz)
+        py_rec_mol = pybel.readstring('xyz', rec_mol.xyz)
+        rec_mol.invert_coordinates()  # change chirality
+        py_rec_mol_inverted = pybel.readstring('xyz', rec_mol.xyz)
+
+        def align_mols(ref, to_be_aligned):
+            """Align a pybel.Molecule (in place) to a reference one.
+
+            :param ref: the reference pybel.Molecule
+            :param to_be_aligned: the pybel.Molecule that will be aligned to ref
+            """
+            ref, to_be_aligned = ref.OBMol, to_be_aligned.OBMol
+            align = openbabel.OBAlign(False, False)
+            align.SetRefMol(ref)
+            align.SetTargetMol(to_be_aligned)
+            align.Align()
+            align.UpdateCoords(to_be_aligned)
+
+        align_mols(py_mol, py_rec_mol)
+        align_mols(py_mol, py_rec_mol_inverted)
+
+        def mse_mae(mol_1, mol_2):
+            """Calculate mean squared distance and mean absolute distance between the atoms in mol_1 and mol_2.
+
+            Each atom in mol_1 is compared with its counterpart in mol_2. Thus, the number of atoms must be equal.
+
+            :param mol_1: pybel.Molecule
+            :param mol_2: pybel.Molecule
+            :return:
+                - mean squared error of atom positions
+                - mean absolute error of atom positions
+            """
+            mse_sum, mae_sum, num_atoms = 0, 0, 0
+            for atom_1, atom_2 in zip(mol_1.atoms, mol_2.atoms):
+                x1, y1, z1 = atom_1.coords
+                x2, y2, z2 = atom_2.coords
+                squared_dist = (x1 - x2) ** 2 + (y1 - y2) ** 2 + (z1 - z2) ** 2
+                mse_sum += squared_dist
+                mae_sum += np.sqrt(squared_dist)
+                num_atoms += 1
+
+            return mse_sum / num_atoms, mae_sum / num_atoms
+
+        mse, mae = mse_mae(py_mol, py_rec_mol)
+        mse_inverted, mae_inverted = mse_mae(py_mol, py_rec_mol_inverted)
+
+        if mse < mse_inverted:
+            return mse, mae
+        else:
+            return mse_inverted, mae_inverted
 
     def _build_model(self, hparams):
         """Build the VAE model given the hyperparameter configuration. Overrides superclass method.
