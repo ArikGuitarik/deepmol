@@ -11,15 +11,15 @@ max_num_atoms, max_num_atoms_h = 9, 29  # implicit hydrogen, explicit hydrogen
 class TestDistanceFeaturizer(unittest.TestCase):
     def setUp(self):
         data_import_directory = os.path.dirname(__file__)
-        sdf_path = os.path.join(data_import_directory, '100_sample_molecules.sdf')
+        sdf_path = os.path.join(data_import_directory, 'sample_mol.sdf')
 
         mol_supplier = Chem.SDMolSupplier(sdf_path, removeHs=True)  # import molecules from sdf file
-        self.rdkit_mol = mol_supplier[9]
+        self.rdkit_mol = mol_supplier[0]
         self.featurizer = DistanceFeaturizer(max_num_atoms, implicit_hydrogen=True)
         self.feat_mol = self.featurizer.featurize(self.rdkit_mol)
 
         mol_supplier = Chem.SDMolSupplier(sdf_path, removeHs=False)  # explicit hydrogen
-        rdkit_mol_h = mol_supplier[9]
+        rdkit_mol_h = mol_supplier[0]
         self.featurizer_h = DistanceFeaturizer(max_num_atoms_h, implicit_hydrogen=False)
         self.feat_mol_h = self.featurizer_h.featurize(rdkit_mol_h)
 
@@ -57,15 +57,15 @@ class TestDistanceFeaturizer(unittest.TestCase):
 class TestDistanceNumHFeaturizer(unittest.TestCase):
     def setUp(self):
         data_import_directory = os.path.dirname(__file__)
-        sdf_path = os.path.join(data_import_directory, '100_sample_molecules.sdf')
+        sdf_path = os.path.join(data_import_directory, 'sample_mol.sdf')
 
         mol_supplier = Chem.SDMolSupplier(sdf_path, removeHs=True)  # import molecules from sdf file
-        self.rdkit_mol = mol_supplier[9]
+        self.rdkit_mol = mol_supplier[0]
         self.featurizer = DistanceNumHFeaturizer(max_num_atoms, implicit_hydrogen=True)
         self.feat_mol = self.featurizer.featurize(self.rdkit_mol)
 
         mol_supplier = Chem.SDMolSupplier(sdf_path, removeHs=False)  # explicit hydrogen
-        rdkit_mol_h = mol_supplier[9]
+        rdkit_mol_h = mol_supplier[0]
         self.featurizer_h = DistanceNumHFeaturizer(max_num_atoms_h, implicit_hydrogen=False)
         self.feat_mol_h = self.featurizer_h.featurize(rdkit_mol_h)
 

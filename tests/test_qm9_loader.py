@@ -10,8 +10,8 @@ from data.standardization import Standardization
 class TestQM9Loader(tf.test.TestCase):
     def test_data_set_generation(self):
         data_import_directory = os.path.dirname(__file__)
-        sdf_path = os.path.join(data_import_directory, '100_sample_molecules.sdf')
-        label_path = os.path.join(data_import_directory, '100_sample_molecules_labels.csv')
+        sdf_path = os.path.join(data_import_directory, 'sample_data', 'training.sdf')
+        label_path = os.path.join(data_import_directory, 'sample_data', 'training_labels.csv')
 
         properties = ['mu', 'alpha', 'Cv']
         implicit_hydrogen = True
