@@ -7,7 +7,6 @@ import copy
 from datetime import timedelta
 from data.qm9_loader import QM9Loader
 from data.molecules import TFMolBatch
-from data.standardization import Standardization
 
 
 class CurveSmoother:
@@ -151,10 +150,24 @@ class QM9Trainer:
 
         :param batch_size: Number of molecules per batch.
         """
-        self._standardization = Standardization()
-        self._train_iterator = self._create_data_iterator(batch_size, 'training', standardization=self._standardization)
-        self._val_iterator = self._create_data_iterator(batch_size, 'validation', standardization=self._standardization)
-        self._test_iterator = self._create_data_iterator(batch_size, 'test', standardization=self._standardization)
+        qm9_loader = QM9Loader(self.data_dir, self.featurizer, self.property_names, standardize_labels=True)
+        self._standardization = qm9_loader.standardization
+
+        def create_iterator(data_set, training=True):
+            """Create a data iterator from the given tf.data.Dataset."""
+            data_set = data_set.cache()
+            if training:
+                data_set = data_set.shuffle(buffer_size=10000, reshuffle_each_iteration=True)
+                data_set = data_set.repeat()
+            data_set = data_set.batch(batch_size)
+            data_set = data_set.prefetch(buffer_size=1)
+            if training:
+                return data_set.make_one_shot_iterator()
+            return data_set.make_initializable_iterator()
+
+        self._train_iterator = create_iterator(qm9_loader.train_data, training=True)
+        self._val_iterator = create_iterator(qm9_loader.val_data, training=False)
+        self._test_iterator = create_iterator(qm9_loader.test_data, training=False)
 
         with tf.name_scope('train_data'):
             train_data = self._train_iterator.get_next()
@@ -171,29 +184,6 @@ class QM9Trainer:
             self._test_mols = TFMolBatch(test_data['atoms'], labels=test_data['labels'],
                                          distance_matrix=test_data['interactions'][..., 0],
                                          coordinates=test_data['coordinates'])
-
-    def _create_data_iterator(self, batch_size, partition='training', standardization=None):
-        """Create a data iterator for one partition of the data set.
-
-        :param batch_size: Number of molecules per batch.
-        :param partition: [training|validation|test]
-        :param standardization: Standardization object, ensures that label standardization is the same in all partitions
-        :return:
-        """
-        data_path = os.path.join(self.data_dir, partition + '.sdf')
-        label_path = os.path.join(self.data_dir, partition + '_labels.csv')
-        qm9_loader = QM9Loader(data_path, label_path, self.featurizer, property_names=self.property_names,
-                               label_standardization=standardization)
-        data_set = qm9_loader.create_tf_dataset()
-        data_set = data_set.cache()
-        if partition == 'training':
-            data_set = data_set.shuffle(buffer_size=10000, reshuffle_each_iteration=True)
-            data_set = data_set.repeat()
-        data_set = data_set.batch(batch_size)
-        data_set = data_set.prefetch(buffer_size=1)
-        if partition == 'training':
-            return data_set.make_one_shot_iterator()
-        return data_set.make_initializable_iterator()
 
     def _init_saver(self):
         """Initialize the tf.train.Saver to save and restore the model to/from disk."""
