@@ -240,7 +240,7 @@ class VAETrainer(QM9Trainer):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('data_dir', help='directory containing data and labels for training, validation and test')
-    parser.add_argument('config_dir', help='directory containing json files with HParams')
+    parser.add_argument('--config_dir', help='directory containing json files with HParams')
     parser.add_argument('--steps', type=int, default=3000000, help='number of steps/batches to train', )
     parser.add_argument('--name', default='', help='prefix of results directory')
     parser.add_argument('--train_log_interval', type=int, default=250, help='write train log after this many steps')
@@ -255,10 +255,13 @@ if __name__ == '__main__':
 
     trainer = VAETrainer(args.data_dir, args.train_log_interval, args.val_log_interval, args.name,
                          not args.explicit_hydrogen, args.patience, args.smoothing_factor)
-
-    config_reader = ConfigReader(args.config_dir, MolVAE.default_hparams())
-    new_hparam_configs = config_reader.get_new_hparam_configs()
-    while len(new_hparam_configs) > 0:
-        logging.info('Found %d new hyperparameter configurations.', len(new_hparam_configs))
-        trainer.run_trainings(new_hparam_configs, args.steps)
+    if args.config_dir is not None:
+        config_reader = ConfigReader(args.config_dir, MolVAE.default_hparams())
         new_hparam_configs = config_reader.get_new_hparam_configs()
+        while len(new_hparam_configs) > 0:
+            logging.info('Found %d new hyperparameter configurations.', len(new_hparam_configs))
+            trainer.run_trainings(new_hparam_configs, args.steps)
+            new_hparam_configs = config_reader.get_new_hparam_configs()
+    else:
+        logging.info('No hyperparameter configurations specified. Using default values.')
+        trainer.run_trainings({'default': MolVAE.default_hparams()}, args.steps)
