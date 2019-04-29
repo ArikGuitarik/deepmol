@@ -14,7 +14,17 @@ logging.basicConfig(format='%(levelname)s - %(message)s', level=logging.INFO)
 
 
 class VAETrainer(QM9Trainer):
+    """Extend QM9Trainer to train and evaluate a geometry-based variational autoencoder for molecules.
 
+    :param data_dir: directory containing the QM9 files *.sdf, *_labels.csv (*=[training|validation|test])
+    :param train_log_interval: Write training log after this many steps.
+    :param val_log_interval: Write validation log after this many steps.
+    :param name: Name of the experiment/training that is performed.
+    :param implicit_hydrogen: If True, hydrogen atoms will be treated implicitly.
+    :param patience: Stop training early if the (smoothed) validation loss has not improved for this many steps.
+    :param loss_smoothing: Early stopping is decided based on a running average of the validation loss.
+        This parameter controls the amount of smoothing and corresponds to the TensorBoard smoothing slider.
+    """
     def __init__(self, data_dir, train_log_interval, val_log_interval, name='', implicit_hydrogen=True,
                  patience=float('inf'), loss_smoothing=0.8):
         super().__init__(data_dir, train_log_interval, val_log_interval, name, implicit_hydrogen,
