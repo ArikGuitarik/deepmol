@@ -259,6 +259,7 @@ class MolVAE:
         hparams = MPNN.default_hparams()
         hparams.set_hparam('learning_rate', 6.25e-4)
         hparams.set_hparam('use_set2vec', False)
+        hparams.set_hparam('hidden_state_dim', 110)
         hparams.add_hparam('latent_dim', 64)  # dimension of latent space
         hparams.add_hparam('encoder_out_hidden_dim', 100)  # of the network mapping to hidden states to latent space
         hparams.add_hparam('encoder_out_hidden_layers', 2)  # of the network mapping to hidden states to latent space
