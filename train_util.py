@@ -121,6 +121,7 @@ class QM9Trainer:
             self._prepare_data(hparam_config.batch_size)
             logging.info('Building model.')
             self._build_model(hparam_config)
+            self._sess.run(tf.global_variables_initializer())  # run before restoring model, otherwise it will overwrite
             self._init_saver()
             self._restore_saved_model()  # restore previously trained model from disk
             if num_steps > self._step:
@@ -216,7 +217,6 @@ class QM9Trainer:
         sess = self._sess
         self._summary_writer = tf.summary.FileWriter(
             os.path.join(self.results_dir, 'logs', 'logs_' + self._config_name), sess.graph)
-        sess.run(tf.global_variables_initializer())
         start_step = self._step
         sess.run(self._global_step.assign(start_step))
         sess.graph.finalize()
