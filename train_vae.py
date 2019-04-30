@@ -3,12 +3,12 @@ import os
 import tensorflow as tf
 import numpy as np
 import argparse
-import pybel
-import openbabel
 from train_util import QM9Trainer, ConfigReader
 from model.molvae import MolVAE
 from data.featurizer import DistanceFeaturizer
 from data.molecules import NPMol
+import pybel
+import openbabel
 
 logging.basicConfig(format='%(levelname)s - %(message)s', level=logging.INFO)
 
