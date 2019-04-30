@@ -351,6 +351,7 @@ class ConfigReader:
         """Get all hyperparameter configs in config_dir that have not been there at the previous call to this method.
 
         :return: dict of hyperparameter configs; config_name => tf.contrib.training.HParams object
+        :raises KeyError: If a hyperparameter in the config file does not match any of the default hyperparameters.
         """
         new_config_files = self._get_new_config_files()
         hparam_configs = {}
@@ -359,6 +360,10 @@ class ConfigReader:
                 hparams = copy.deepcopy(self.default_hparams)
                 filename = os.path.basename(config_file)
                 config_name = os.path.splitext(filename)[0]
-                hparam_configs[config_name] = hparams.parse_json(f.read())
+                try:
+                    hparam_configs[config_name] = hparams.parse_json(f.read())
+                except KeyError as e:
+                    raise KeyError('There is a parameter in the configuration ' + config_name +
+                                   ' which does not match any of the default parameters: ' + str(e)) from None
 
         return hparam_configs
