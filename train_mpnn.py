@@ -1,7 +1,7 @@
 import logging
 import tensorflow as tf
 import argparse
-from train_util import QM9Trainer, ConfigReader
+from train_util import QM9Trainer, read_configs_and_train
 from model.mpnn import MPNN
 from data.featurizer import DistanceNumHFeaturizer
 
@@ -129,13 +129,4 @@ if __name__ == '__main__':
     trainer = MPNNTrainer(args.data_dir, args.train_log_interval, args.val_log_interval, args.name,
                           not args.explicit_hydrogen, args.patience, args.smoothing_factor, [args.property])
 
-    if args.config_dir is not None:
-        config_reader = ConfigReader(args.config_dir, MPNN.default_hparams())
-        new_hparam_configs = config_reader.get_new_hparam_configs()
-        while len(new_hparam_configs) > 0:
-            logging.info('Found %d new hyperparameter configurations.', len(new_hparam_configs))
-            trainer.run_trainings(new_hparam_configs, args.steps)
-            new_hparam_configs = config_reader.get_new_hparam_configs()
-    else:
-        logging.info('No hyperparameter configurations specified. Using default values.')
-        trainer.run_trainings({'default': MPNN.default_hparams()}, args.steps)
+    read_configs_and_train(trainer, MPNN.default_hparams(), args.steps, args.config_dir)

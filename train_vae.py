@@ -3,7 +3,7 @@ import os
 import tensorflow as tf
 import numpy as np
 import argparse
-from train_util import QM9Trainer, ConfigReader
+from train_util import QM9Trainer, read_configs_and_train
 from model.molvae import MolVAE
 from data.featurizer import DistanceFeaturizer
 from data.molecules import NPMol
@@ -25,6 +25,7 @@ class VAETrainer(QM9Trainer):
     :param loss_smoothing: Early stopping is decided based on a running average of the validation loss.
         This parameter controls the amount of smoothing and corresponds to the TensorBoard smoothing slider.
     """
+
     def __init__(self, data_dir, train_log_interval, val_log_interval, name='', implicit_hydrogen=True,
                  patience=float('inf'), loss_smoothing=0.8):
         super().__init__(data_dir, train_log_interval, val_log_interval, name, implicit_hydrogen,
@@ -265,13 +266,4 @@ if __name__ == '__main__':
 
     trainer = VAETrainer(args.data_dir, args.train_log_interval, args.val_log_interval, args.name,
                          not args.explicit_hydrogen, args.patience, args.smoothing_factor)
-    if args.config_dir is not None:
-        config_reader = ConfigReader(args.config_dir, MolVAE.default_hparams())
-        new_hparam_configs = config_reader.get_new_hparam_configs()
-        while len(new_hparam_configs) > 0:
-            logging.info('Found %d new hyperparameter configurations.', len(new_hparam_configs))
-            trainer.run_trainings(new_hparam_configs, args.steps)
-            new_hparam_configs = config_reader.get_new_hparam_configs()
-    else:
-        logging.info('No hyperparameter configurations specified. Using default values.')
-        trainer.run_trainings({'default': MolVAE.default_hparams()}, args.steps)
+    read_configs_and_train(trainer, MolVAE.default_hparams(), args.steps, args.config_dir)

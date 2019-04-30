@@ -369,3 +369,32 @@ class ConfigReader:
                                    ' which does not match any of the default parameters: ' + str(e)) from None
 
         return hparam_configs
+
+
+def read_configs_and_train(trainer, default_hparams, num_steps, config_dir=None):
+    """Read hyperparameter configurations from config_dir and run the respective trainings.
+
+    If config_dir is specified, the directory is checked for hyperparameter configurations and the respective
+    trainings are started.
+    If new configurations have been added in the meantime, training will continue with these.
+
+    If config_dir is None, training will be just be run with the default configuration default_hparams.
+
+    :param trainer: Subclass of QM9Trainer to perform the training.
+    :param default_hparams: tf.contrib.training.HParams with the default hyperparameter configuration.
+    :param num_steps: Number of steps/batches to train
+    :param config_dir: Directory containing json files with HParams.
+    """
+    if config_dir is not None:
+        config_reader = ConfigReader(config_dir, default_hparams)
+        new_hparam_configs = config_reader.get_new_hparam_configs()
+        while len(new_hparam_configs) > 0:
+            logging.info('Found %d new hyperparameter configurations.', len(new_hparam_configs))
+            trainer.run_trainings(new_hparam_configs, num_steps)
+            logging.info('Checking for new hyperparameter configurations that have been added during training.')
+            new_hparam_configs = config_reader.get_new_hparam_configs()
+        logging.info('No new hyperparameter configurations found.')
+    else:
+        logging.info('No directory with hyperparameter configurations specified. Using default values.')
+        trainer.run_trainings({'default': default_hparams}, num_steps)
+    logging.info('Done.')
