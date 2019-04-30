@@ -258,9 +258,11 @@ class QM9Trainer:
                 sess.run(self._train_op)
 
             # estimate remaining time
-            if self._step % (10 * self.train_log_interval) == 0 and (self._step - start_step) >= self.val_log_interval:
+            num_steps_since_start = self._step - start_step
+            if self._step % (10 * self.train_log_interval) == 0 and num_steps_since_start >= self.val_log_interval:
                 seconds_since_start = time.time() - start_time
-                remaining_seconds = seconds_since_start * (num_steps / self._step - 1)
+                num_steps_to_train = num_steps - start_step
+                remaining_seconds = seconds_since_start * (num_steps_to_train / num_steps_since_start - 1)
                 formatted_remaining_time = str(timedelta(seconds=int(remaining_seconds)))
                 logging.info(formatted_remaining_time + ' remaining for configuration %d / %d',
                              self._current_config_number, self._num_configs)
