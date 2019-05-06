@@ -61,6 +61,7 @@ class VAETrainer(QM9Trainer):
     def _eval_results(self):
         """Compute scores on validation and test set and write to results file."""
         results = {}
+        results['eval_step'] = self._step
         results['val_loss'] = self._average_over_dataset(self._val_iterator, self._val_loss)
         results['test_loss'] = self._average_over_dataset(self._test_iterator, self._test_loss)
 

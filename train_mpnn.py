@@ -61,6 +61,7 @@ class MPNNTrainer(QM9Trainer):
     def _eval_results(self):
         """Compute loss and mean absolute error on validation and test set and write to results file."""
         results = {}
+        results['eval_step'] = self._step
         val_averages = self._average_over_dataset(self._val_iterator, [self._val_loss, self._val_mae_actual_scale])
         results['val_loss'] = val_averages[0]
         results['val_mae'] = val_averages[1]
