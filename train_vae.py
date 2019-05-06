@@ -152,7 +152,7 @@ class VAETrainer(QM9Trainer):
         if correct_atoms_counter != 0:
             atom_accuracy = correct_atoms_counter / total_counter
             rmse = np.sqrt(mse_sum / correct_atoms_counter)
-            mae /= correct_atoms_counter
+            mae = mae_sum / correct_atoms_counter
         return atom_accuracy, smiles_accuracy, rmse, mae
 
     @staticmethod
