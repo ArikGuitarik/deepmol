@@ -188,7 +188,7 @@ class QM9Trainer:
 
     def _init_saver(self):
         """Initialize the tf.train.Saver to save and restore the model to/from disk."""
-        self._saver = tf.train.Saver(max_to_keep=1)
+        self._saver = tf.train.Saver(max_to_keep=1, save_relative_paths=True)
         self._checkpoint_dir = os.path.join(self.results_dir, 'checkpoints', 'checkpoints_' + self._config_name)
         if not os.path.exists(self._checkpoint_dir):
             os.makedirs(self._checkpoint_dir)
